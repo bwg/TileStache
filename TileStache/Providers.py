@@ -134,6 +134,10 @@ def getProviderByName(name):
         from . import Sandwich
         return Sandwich.Provider
 
+    elif name.lower() == 'mpsandwich':
+        from . import MPSandwich
+        return MPSandwich.Provider
+
     raise Exception('Unknown provider name: "%s"' % name)
 
 class Verbatim:
