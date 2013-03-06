@@ -160,46 +160,54 @@ def _addRecentTile(layer, coord, format, body, age=300):
     
     logging.debug('TileStache.Core._addRecentTile() added tile to recent tiles: %s', key)
     
-    # now look at the oldest keys and remove them if needed
-    for (key, due_by) in _recent_tiles['list']:
-        # new enough?
-        if time() < due_by:
-            break
-        
-        logging.debug('TileStache.Core._addRecentTile() removed tile from recent tiles: %s', key)
-        
-        try:
-            _recent_tiles['list'].remove((key, due_by))
-        except ValueError:
-            pass
-        
-        try:
-            del _recent_tiles['hash'][key]
-        except KeyError:
-            pass
-
+    
 def _getRecentTile(layer, coord, format):
     """ Return the body of a recent tile, or None if it's not there.
     """
     key = (layer, coord, format)
-    body, use_by = _recent_tiles['hash'].get(key, (None, 0))
+    body, expiration = _recent_tiles['hash'].get(key, (None, 0))
     
     # non-existent?
     if body is None:
         return None
     
     # new enough?
-    if time() < use_by:
+    if time() < expiration:
         logging.debug('TileStache.Core._addRecentTile() found tile in recent tiles: %s', key)
         return body
     
     # too old
+    _delRecentTile(key, expiration)
+    
+    return None
+    
+    
+def _delRecentTile(key, expiration):
+    """ Remove a tile from the recent tiles list
+    """
+    logging.debug('TileStache.Core._addRecentTile() removed tile from recent tiles: %s', key)
+
+    try:
+        _recent_tiles['list'].remove((key, expiration))
+    except ValueError:
+        pass
+    
     try:
         del _recent_tiles['hash'][key]
     except KeyError:
         pass
+
+
+def _purgeRecentTiles(age=300):
+    """ Remove all tiles older than a given age from the recent tiles list
+    """
+    times_up = time() + age
     
-    return None
+    # now look at the oldest keys and remove them if needed
+    for (key, expiration) in _recent_tiles['list']:
+        if times_up > expiration
+            _delRecentTile(key, expiration)
+
 
 class Metatile:
     """ Some basic characteristics of a metatile.
