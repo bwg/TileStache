@@ -166,33 +166,45 @@ class Provider(Sandwich.Provider):
                 stackLayers.append(source_name)
 
                 if source_name in self.config.layers:
-                    logging.debug('TileStache.Sandwich.draw_stack() adding layer_bitmap process %s', source_name)
-                    procs.append(multiprocessing.Process(name=source_name, target=layer_bitmap, args=(source_name, self.config.layers[source_name], coord, tileQueue)))
+                    logging.debug('TileStache.MPSandwich.draw_stack() adding layer_bitmap process %s/%d/%d/%d', source_name, coord.zoom, coord.column, coord.row)
+                    procs.append(multiprocessing.Process(name=source_name, target=layer_bitmap, args=(source_name, self.config.layers[source_name], coord, tileQueue, )))
                 else:
-                    logging.debug('TileStache.Sandwich.draw_stack() adding local_bitmap process %s', source_name)
-                    procs.append(multiprocessing.Process(name=source_name, target=local_bitmap, args=(source_name, self.config, coord, self.layer.dim, tileQueue)))
+                    logging.debug('TileStache.MPSandwich.draw_stack() adding local_bitmap process %s/%d/%d/%d', source_name, coord.zoom, coord.column, coord.row)
+                    procs.append(multiprocessing.Process(name=source_name, target=local_bitmap, args=(source_name, self.config, coord, self.layer.dim, tileQueue, )))
 
             if mask_name and mask_name not in stackLayers:
-                logging.debug('TileStache.Sandwich.draw_stack() adding layer_bitmap process %s', mask_name)
+                logging.debug('TileStache.MPSandwich.draw_stack() adding layer_bitmap process %s/%d/%d/%d', mask_name, coord.zoom, coord.column, coord.row)
                 stackLayers.append(mask_name)
-                procs.append(multiprocessing.Process(name=mask_name, target=layer_bitmap, args=(mask_name, self.config.layers[mask_name], coord, tileQueue)))
+                procs.append(multiprocessing.Process(name=mask_name, target=layer_bitmap, args=(mask_name, self.config.layers[mask_name], coord, tileQueue, )))
 
 
-        logging.debug('TileStache.Sandwich.draw_stack() using %d processes', len(procs))
+        numProcs = len(procs)
+        logging.debug('TileStache.MPSandwich.draw_stack() using %d processes for %s/%d/%d/%d', numProcs, self.layer.name(), coord.zoom, coord.column, coord.row)
 
         # start all the processes
         for p in procs:
-            logging.debug('TileStache.Sandwich.draw_stack() starting process %s', p.name)
+            logging.debug('TileStache.MPSandwich.draw_stack() starting process %s for %s/%d/%d/%d', p.name, self.layer.name(), coord.zoom, coord.column, coord.row)
+            p.daemon = False
             p.start()
 
         # get the queue result for each process
         # MUST do this prior to joining processes
-        for p in procs:
-            # update the 
-            tiles.update(tileQueue.get())
+        for i in range(0, numProcs):
+            # get will block until it can pull an item off the queue
+            t = tileQueue.get()
+
+            logging.debug('TileStache.MPSandwich.draw_stack() got queue result %s (%d of %d) for %s/%d/%d/%d', t.keys()[0], i+1, numProcs, self.layer.name(), coord.zoom, coord.column, coord.row)
+
+            # update the tile dict with the rendered image
+            tiles.update(t)
+
+        logging.debug('TileStache.MPSandwich.draw_stack() closed queue for %s/%d/%d/%d', self.layer.name(), coord.zoom, coord.column, coord.row)
+        tileQueue.close()
 
         # wait for all the processes to finish
-        #for p in procs: p.join()
+        for p in procs: 
+            p.join()
+            logging.debug('TileStache.MPSandwich.draw_stack() joined process %s for %s/%d/%d/%d', p.name, self.layer.name(), coord.zoom, coord.column, coord.row)
 
         return Sandwich.Provider.draw_stack(self, coord, tiles);
 
