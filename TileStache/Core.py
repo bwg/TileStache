@@ -205,7 +205,7 @@ def _purgeRecentTiles(age=300):
     
     # now look at the oldest keys and remove them if needed
     for (key, expiration) in _recent_tiles['list']:
-        if times_up > expiration
+        if times_up > expiration:
             _delRecentTile(key, expiration)
 
 
@@ -605,6 +605,11 @@ def _preview(layer):
             height: 100%%;
             margin: 0;
             padding: 0;
+        }
+
+        #map img {
+            width: 256px;
+            height: 256px;
         }
     </style>
 </head>
